@@ -12,7 +12,8 @@
     "base": "../..",
     "include": [
       "ReferenceDesigns/merge_sort",
-      "include/pipe_utils.hpp"
+      "include/pipe_utils.hpp",
+      "include/unrolled_loop.hpp"
     ],
     "exclude": []
   },

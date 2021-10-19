@@ -14,7 +14,7 @@
 #include "merge.hpp"
 #include "produce.hpp"
 #include "sorting_networks.hpp"
-#include "unrolled_loop.hpp"
+#include "unrolled_loop.hpp"// Included from DirectProgramming/DPC++FPGA/include
 #include "pipe_utils.hpp" // Included from DirectProgramming/DPC++FPGA/include/
 #include "impu_math.hpp"
 
@@ -212,7 +212,7 @@ std::vector<event> SubmitMergeSort(queue& q, size_t count, ValueT* buf_0,
 
     // launch the merge unit kernels for this iteration of the sort using
     // a front-end meta-programming unroller
-    impu::UnrolledLoop<units>([&](auto u) {
+    UnrolledLoop<units>([&](auto u) {
       // the intra merge unit pipes
       using APipe = typename APipes::template PipeAt<u>;
       using BPipe = typename BPipes::template PipeAt<u>;
@@ -294,14 +294,14 @@ std::vector<event> SubmitMergeSort(queue& q, size_t count, ValueT* buf_0,
   // of each merge unit into a single sorted output. The output of the last
   // level of the merge tree will stream out of 'OutPipe'.
   // NOTE: if units==1, then there is no merge tree!
-  impu::UnrolledLoop<kReductionLevels>([&](auto level) {
+  UnrolledLoop<kReductionLevels>([&](auto level) {
     // each level of the merge tree reduces the number of sorted partitions
     // by a factor of 2.
     // level 0 has 'units' merge kernels, level 1 has 'units/2', and so on...
     // See README.md for a good illustration.
     constexpr size_t kLevelMergeUnits = units / ((1 << level) * 2);
 
-    impu::UnrolledLoop<kLevelMergeUnits>([&](auto merge_unit) {
+    UnrolledLoop<kLevelMergeUnits>([&](auto merge_unit) {
       // When level == 0, we know we will use 'MTAPipeFromMergeUnit' and
       // 'MTBPipeFromMergeUnit' below. However, we cannot access
       // PipeAt<-1, ...> without a compiler error. So, we will set the previous

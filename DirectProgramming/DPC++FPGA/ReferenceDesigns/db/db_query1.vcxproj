@@ -27,7 +27,6 @@
     <ClInclude Include="src\db_utils\ShannonIterator.hpp" />
     <ClInclude Include="src\db_utils\StreamingData.hpp" />
     <ClInclude Include="src\db_utils\Tuple.hpp" />
-    <ClInclude Include="src\db_utils\Unroller.hpp" />
     <ClInclude Include="src\query1\query1_kernel.hpp" />
   </ItemGroup>
   <ItemGroup>

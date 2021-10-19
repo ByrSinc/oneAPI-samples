@@ -48,6 +48,8 @@
 #include "gzipkernel_ll.hpp"
 #include "kernels.hpp"
 #include "pipe_utils.hpp" // Included from DirectProgramming/DPC++FPGA/include/
+// Included from DirectProgramming/DPC++FPGA/include
+#include "unrolled_loop.hpp"
 
 
 using namespace sycl;
@@ -65,21 +67,6 @@ using acc_dist_channel_last_array =
 
 using acc_lz_to_crc_channel_array =
     PipeArray<class crc_channel_pipe_id, char_arr_32, 32, NUM_ENGINES>;
-
-template <int Begin, int End>
-struct Unroller {
-  template <typename Action>
-  static void step(const Action &action) {
-    action(std::integral_constant<int, Begin>());
-    Unroller<Begin + 1, End>::step(action);
-  }
-};
-
-template <int End>
-struct Unroller<End, End> {
-  template <typename Action>
-  static void step(const Action &action) {}
-};
 
 int GetHuffLiteralBits(unsigned char ch) {
   CtData static_ltree[kLCodes + 2] = {
@@ -663,7 +650,7 @@ bool HufEnc(char *len, short *dist, unsigned char *data, unsigned int *outdata,
   unsigned short bitpos[kVec + 1];
   bitpos[0] = 0;
 
-  Unroller<0, kVec>::step([&](int i) {
+  UnrolledLoop<int, kVec>([&](auto i) {
     bitpos[i + 1] = bitpos[i] + (IsValid(len[i], dist[i], data[i])
                                      ? GetHuffLen(len[i], dist[i], data[i])
                                      : 0);
@@ -683,8 +670,8 @@ bool HufEnc(char *len, short *dist, unsigned char *data, unsigned int *outdata,
   *leftover_size &= ~(kVec * (kMaxHuffcodeBits * 2));
 
   // Adjust bitpos based on leftover offset from previous cycle
-  Unroller<0, kVec>::step(
-      [&](int i) { bitpos[i] += (prev_cycle_offset & 0x3fff); });
+  UnrolledLoop<int, kVec>(
+      [&](auto i) { bitpos[i] += (prev_cycle_offset & 0x3fff); });
 
   // Huffman codes have any bit alignement, so they can spill
   // onto two shorts in the output array
@@ -692,12 +679,12 @@ bool HufEnc(char *len, short *dist, unsigned char *data, unsigned int *outdata,
   // Iterate over all codes and construct ushort2 containing
   // the code properly aligned
   struct Uint2Gzip code[kVec];
-  Unroller<0, kVec>::step([&](int i) {
+  UnrolledLoop<int, kVec>([&](auto i) {
     code[i].x = 0;
     code[i].y = 0;
   });
 
-  Unroller<0, kVec>::step([&](int i) {
+  UnrolledLoop<int, kVec>([&](auto i) {
     // Codes can be more than 16 bits, so use uint32
     unsigned int curr_code = GetHuffBits(len[i], dist[i], data[i]);
     unsigned char bitpos_in_short = bitpos[i] & 0x01F;
@@ -717,11 +704,11 @@ bool HufEnc(char *len, short *dist, unsigned char *data, unsigned int *outdata,
 
   // Iterate over all destination locations and gather the required data
   unsigned int new_leftover[kVec];
-  Unroller<0, kVec>::step([&](int i) {
+  UnrolledLoop<int, kVec>([&](auto i) {
     new_leftover[i] = 0;
     outdata[i] = 0;
 
-    Unroller<0, kVec>::step([&](int j) {
+    UnrolledLoop<int, kVec>([&](auto j) {
       // figure out whether code[j] goes into bucket[i]
       bool match_first = ((bitpos[j] >> 5) & (kVec - 1)) == i;
       bool match_second =
@@ -744,14 +731,14 @@ bool HufEnc(char *len, short *dist, unsigned char *data, unsigned int *outdata,
 
   // Apply previous leftover on the outdata
   // Also, if didn't write, apply prev leftover onto newleftover
-  Unroller<0, kVec>::step([&](int i) {
+  UnrolledLoop<int, kVec>([&](auto i) {
     outdata[i] |= leftover[i];
     leftover[i] = outdata[i];
   });
 
   // HACK: split unroll into two unrolls to avoid compiler crash
   if (write) {
-    Unroller<0, kVec>::step([&](int i) { leftover[i] = new_leftover[i]; });
+    UnrolledLoop<int, kVec>([&](auto i) { leftover[i] = new_leftover[i]; });
   }
 
   return write;
@@ -2076,7 +2063,7 @@ event SubmitLZReduction(queue &q, size_t block_size, bool last_block,
       // for each value in ptrs.
 
       host_ptr<char> host_pibuf[BatchSize];
-      Unroller<0, BatchSize>::step(
+      UnrolledLoop<BatchSize>(
           [&](auto i) { host_pibuf[i] = host_ptr<char>(get<i>(ptrs...)); });
 
       // See comments at top of file, regarding batching
@@ -2104,7 +2091,7 @@ event SubmitLZReduction(queue &q, size_t block_size, bool last_block,
 
         // Initialize history to empty.
         for (int i = 0; i < kDepth; i++) {
-          Unroller<0, kVec>::step([&](int k) { dict_offset[i][k] = 0; });
+          UnrolledLoop<int, kVec>([&](auto k) { dict_offset[i][k] = 0; });
         }
 
         // This is the window of data on which we look for matches
@@ -2144,7 +2131,7 @@ event SubmitLZReduction(queue &q, size_t block_size, bool last_block,
 
         // load in new data
         struct LzInput in;
-        Unroller<0, kVec>::step([&](int i) {
+        UnrolledLoop<int, kVec>([&](auto i) {
           in.data[i] = acc_pibuf[inpos++];  // Reads 16 bytes, just one time.
           input_data.arr[i] =
               in.data[i];  // Send a copy of the data to the CRC kernel, through
@@ -2152,8 +2139,8 @@ event SubmitLZReduction(queue &q, size_t block_size, bool last_block,
                            // together into a wider word.
         });
 
-        Unroller<0, kVec>::step(
-            [&](int i) { current_window[i + kVec] = in.data[i]; });
+        UnrolledLoop<int, kVec>(
+            [&](auto i) { current_window[i + kVec] = in.data[i]; });
 
         do {
           //-----------------------------
@@ -2161,11 +2148,11 @@ event SubmitLZReduction(queue &q, size_t block_size, bool last_block,
           //-----------------------------
 
           // shift current window
-          Unroller<0, kVec>::step(
-              [&](int i) { current_window[i] = current_window[i + kVec]; });
+          UnrolledLoop<int, kVec>(
+              [&](auto i) { current_window[i] = current_window[i + kVec]; });
 
           // load in new data
-          Unroller<0, kVec>::step([&](int i) {
+          UnrolledLoop<int, kVec>([&](auto i) {
             in.data[i] = acc_pibuf[inpos++];
             input_data.arr[16 * (int)crc_ch_load_upper + i] = in.data[i];
           });
@@ -2180,8 +2167,8 @@ event SubmitLZReduction(queue &q, size_t block_size, bool last_block,
           // i.e. if true, upper will be loaded next.
           crc_ch_load_upper = !crc_ch_load_upper;
 
-          Unroller<0, kVec>::step(
-              [&](int i) { current_window[kVec + i] = in.data[i]; });
+          UnrolledLoop<int, kVec>(
+              [&](auto i) { current_window[kVec + i] = in.data[i]; });
 
           //-----------------------------
           // Compute hash
@@ -2189,7 +2176,7 @@ event SubmitLZReduction(queue &q, size_t block_size, bool last_block,
 
           unsigned short hash[kVec];
 
-          Unroller<0, kVec>::step([&](int i) {
+          UnrolledLoop<int, kVec>([&](auto i) {
             hash[i] = (current_window[i] ^ (current_window[i + 1] << 6) ^
                        (current_window[i + 2] << 2) ^ current_window[i + 3]) &
                       kHashMask;
@@ -2200,18 +2187,18 @@ event SubmitLZReduction(queue &q, size_t block_size, bool last_block,
           //-----------------------------
 
           // loop over kVec compare windows, each has a different hash
-          Unroller<0, kVec>::step([&](int i) {
+          UnrolledLoop<int, kVec>([&](auto i) {
             // loop over all kVec bytes
-            Unroller<0, kLen>::step([&](int j) {
-              Unroller<0, kVec>::step([&](int k) {
+            UnrolledLoop<int, kLen>([&](auto j) {
+              UnrolledLoop<int, kVec>([&](auto k) {
                 compare_window[k][j][i] = dictionary[hash[i]][j].s[k];
               });
             });
           });
 
           // loop over compare windows
-          Unroller<0, kVec>::step([&](int i) {
-            Unroller<0, kLen>::step([&](int j) {
+          UnrolledLoop<int, kVec>([&](auto i) {
+            UnrolledLoop<int, kLen>([&](auto j) {
               // loop over frames in this compare window
               // (they come from different dictionaries)
               compare_offset[j][i] = dict_offset[hash[i]][j];
@@ -2225,14 +2212,14 @@ event SubmitLZReduction(queue &q, size_t block_size, bool last_block,
           // loop over different dictionaries to store different frames
           // store one frame per dictionary
           // loop over kVec bytes to store
-          Unroller<0, kLen>::step([&](int i) {
-            Unroller<0, kVec>::step([&](int j) {
+          UnrolledLoop<int, kLen>([&](auto i) {
+            UnrolledLoop<int, kVec>([&](auto j) {
               // store actual bytes
               dictionary[hash[i]][i].s[j] = current_window[i + j];
             });
           });
 
-          Unroller<0, kVec>::step([&](int i) {
+          UnrolledLoop<int, kVec>([&](auto i) {
             // loop over kVec different dictionaries and write one word to each
             dict_offset[hash[i]][i] =
                 (inpos_minus_vec_div_16 << 4) |
@@ -2251,25 +2238,25 @@ event SubmitLZReduction(queue &q, size_t block_size, bool last_block,
           unsigned int best_offset[kVec];
 
           // initialize best_length
-          Unroller<0, kVec>::step([&](int i) {
+          UnrolledLoop<int, kVec>([&](auto i) {
             best_length[i] = 0;
             best_offset[i] = 0;
           });
 
           // loop over each comparison window frame
           // one comes from each dictionary
-          Unroller<0, kVec>::step([&](int i) {
+          UnrolledLoop<int, kVec>([&](auto i) {
             // initialize length and done
-            Unroller<0, kVec>::step([&](int l) {
+            UnrolledLoop<int, kVec>([&](auto l) {
               length[l] = 0;
               done[l] = 0;
             });
 
             // loop over each current window
-            Unroller<0, kVec>::step([&](int j) {
+            UnrolledLoop<int, kVec>([&](auto j) {
               // loop over each char in the current window
               // and corresponding char in comparison window
-              Unroller<0, kLen>::step([&](int k) {
+              UnrolledLoop<int, kLen>([&](auto k) {
                 bool comp = current_window[k + j] == compare_window[k][i][j] &&
                             !done[j];
                 length[j] += comp;
@@ -2278,7 +2265,7 @@ event SubmitLZReduction(queue &q, size_t block_size, bool last_block,
             });
 
             // Check if this the best length
-            Unroller<0, kVec>::step([&](int m) {
+            UnrolledLoop<int, kVec>([&](auto m) {
               bool update_best =
                   (length[m] > best_length[m]) && (compare_offset[i][m] != 0) &&
                   (((inpos_minus_vec_div_16 << kVecPow) | (i & (kVec - 1))) -
@@ -2312,7 +2299,7 @@ event SubmitLZReduction(queue &q, size_t block_size, bool last_block,
           // remove matches with offsets that are <= 0: this means they're
           // self-matching or didn't match and keep only the matches that, when
           // encoded, take fewer bytes than the actual match length
-          Unroller<0, kVec>::step([&](int i) {
+          UnrolledLoop<int, kVec>([&](auto i) {
             best_length[i] = (((best_length[i] & 0x1f) >= 3) &&
                                       ((best_offset[i]) < kMaxDistance)
                                   ? best_length[i]
@@ -2340,9 +2327,9 @@ event SubmitLZReduction(queue &q, size_t block_size, bool last_block,
           // the previous first_valid_pos.
           char first_valid_pos_speculative[kVec];
 
-          Unroller<0, kVec>::step([&](int guess) {
+          UnrolledLoop<int, kVec>([&](auto guess) {
             unsigned char next_match_search = guess;
-            Unroller<0, kVec>::step([&](int i) {
+            UnrolledLoop<int, kVec>([&](auto i) {
               unsigned int len = best_length[i];
 
               // Skip to the next match
@@ -2365,7 +2352,7 @@ event SubmitLZReduction(queue &q, size_t block_size, bool last_block,
                1);  // first_valid_pos only needs 4 bits, make this explicit
 
           // greedy match selection
-          Unroller<0, (kVec)>::step([&](int i) {
+          UnrolledLoop<int, (kVec)>([&](auto i) {
             unsigned int len = best_length[i];
             best_length[i] = i < current_valid_pos ? -1 : best_length[i];
             // Skip to the next match
@@ -2377,7 +2364,7 @@ event SubmitLZReduction(queue &q, size_t block_size, bool last_block,
           // Setup LZ dist/len pairs to push to Huffman encode kernel
           //-----------------------------
 
-          Unroller<0, kVec>::step([&](int i) {
+          UnrolledLoop<int, kVec>([&](auto i) {
             dist_offs_data.data[i] = 0;
             dist_offs_data.len[i] = -1;
             dist_offs_data.dist[i] = -1;
@@ -2405,13 +2392,13 @@ event SubmitLZReduction(queue &q, size_t block_size, bool last_block,
 
         const char lasti = accessor_isz - (accessor_isz & ~(kVec - 1));
         const char firstpos = first_valid_pos;
-        Unroller<0, kVec>::step([&](unsigned char i) {
+        UnrolledLoop<unsigned char, kVec>([&](auto i) {
           dist_offs_data.data[i] = 0;
           dist_offs_data.len[i] = -1;
           dist_offs_data.dist[i] = -1;
         });
 
-        Unroller<0, kVec>::step([&](unsigned char i) {
+        UnrolledLoop<unsigned char, kVec>([&](auto i) {
           bool pred =
               ((i - firstpos) < (lasti - firstpos)) && ((i - firstpos) >= 0);
           dist_offs_data.data[i] = pred ? current_window[i + kVec] : 0;
@@ -2443,7 +2430,7 @@ event SubmitStaticHuffman(queue &q, size_t block_size,
       // See comments in SubmitLZReduction, where the same parameter unpacking
       // is done.
       host_ptr<char> host_pobuf[BatchSize];
-      Unroller<0, BatchSize>::step(
+      UnrolledLoop<BatchSize>(
           [&](auto i) { host_pobuf[i] = host_ptr<char>(get<i>(ptrs...)); });
 
       auto accessor_isz = block_size;
@@ -2458,7 +2445,7 @@ event SubmitStaticHuffman(queue &q, size_t block_size,
         host_ptr<char> accessor_output = host_pobuf[iter % BatchSize];
 
         unsigned int leftover[kVec] = {0};
-        Unroller<0, kVec>::step([&](int i) { leftover[i] = 0; });
+        UnrolledLoop<int, kVec>([&](auto i) { leftover[i] = 0; });
 
         unsigned short leftover_size = 0;
 
@@ -2475,7 +2462,7 @@ event SubmitStaticHuffman(queue &q, size_t block_size,
           struct DistLen in;
           // init the input structure for the gzip end block marker.
           // this is the very last data block to be encoded and written.
-          Unroller<0, kVec>::step([&](int i) {
+          UnrolledLoop<int, kVec>([&](auto i) {
             in.len[i] = -1;
             in.dist[i] = -1;
             in.data[i] = 0;
@@ -2496,7 +2483,7 @@ event SubmitStaticHuffman(queue &q, size_t block_size,
 
           // prevent out of bounds write
           if (((ctr == 0) || outdata.write) && (odx < accessor_isz)) {
-            Unroller<0, kVec * sizeof(unsigned int)>::step([&](int i) {
+            UnrolledLoop<int, kVec * sizeof(unsigned int)>([&](auto i) {
               accessor_output[odx + i] =
                   (ctr == 0) ? (unsigned char)(leftover[(i >> 2) & 0xf] >>
                                                ((i & 3) << 3))

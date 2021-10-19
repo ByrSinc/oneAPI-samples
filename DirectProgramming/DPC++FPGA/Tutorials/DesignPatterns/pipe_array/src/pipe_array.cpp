@@ -49,9 +49,9 @@ void Producer(queue &q, buffer<uint64_t, 1> &input_buffer) {
       size_t input_idx = 0;
       for (size_t pass = 0; pass < num_passes; pass++) {
         // Template-based unroll (outer "i" loop)
-        impu::UnrolledLoop<kNumRows>([&input_idx, input_accessor](auto i) {
+        UnrolledLoop<kNumRows>([&input_idx, input_accessor](auto i) {
           // Template-based unroll (inner "j" loop)
-          impu::UnrolledLoop<kNumCols>([&input_idx, &i, input_accessor](auto j) {
+          UnrolledLoop<kNumCols>([&input_idx, &i, input_accessor](auto j) {
             // Write a value to the <i,j> pipe of the pipe array
             ProducerToConsumerPipeMatrix::PipeAt<i, j>::write(
                 input_accessor[input_idx++]);
@@ -139,7 +139,7 @@ int main(int argc, char *argv[]) {
     std::vector<buffer<uint64_t,1>> consumer_buffers;
 
     // Use template-based unroll to enqueue multiple consumers
-    impu::UnrolledLoop<kNumberOfConsumers>([&](auto consumer_id) {
+    UnrolledLoop<kNumberOfConsumers>([&](auto consumer_id) {
       consumer_buffers.emplace_back(consumer_output[consumer_id].data(),
                                     items_per_consumer);
       Consumer<consumer_id>(q, consumer_buffers.back());

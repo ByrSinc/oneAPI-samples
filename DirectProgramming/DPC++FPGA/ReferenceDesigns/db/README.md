@@ -244,7 +244,6 @@ You should see the following output in the console:
 |`db_utils/ShannonIterator.hpp`         | A template based iterator to improve Fmax/II for designs
 |`db_utils/StreamingData.hpp`           | A generic datastructure for streaming data between kernels
 |`db_utils/Tuple.hpp`                   | A templated tuple that behaves better on the FPGA than the std::tuple
-|`db_utils/Unroller.hpp`                | A templated-based loop unroller that unrolls loops in the front end 
 
 ### Database files
 In the `data/` directory, you will find database files for a scale factor of 0.01. These files were generated manually and can be used to verify the queries in emulation. However, **these files are too small to showcase the true performance of the FPGA hardware**.

@@ -185,7 +185,7 @@ PASSED
 |`Tuple.hpp`                     | A templated tuple that defines the NTuple class which is used for pipe interfaces
 |`udp_loopback_test.cpp`         | Contains the `main()` function for the loopback test. This code is only relevant for use with real IO pipes
 |`UDP.hpp`                       | This code is **only** relevant for using the real IO pipes (i.e. not in the devcloud). This is discussed later in the [Using Real IO-pipes Section](#using-real-io-pipes)
-|`UnrolledLoop.hpp`              | A templated-based loop unroller that unrolls loops in the compiler front end
+|`unrolled_loop.hpp`              | A templated-based loop unroller that unrolls loops in the compiler front end. This header can be found in the DirectProgramming/DPC++FPGA/include/ directory of this repository.
 
 ### MVDR Beamforming
 This reference design is built upon the **IO Streaming** code sample.

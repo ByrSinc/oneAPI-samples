@@ -28,7 +28,6 @@
     <ClInclude Include="src\StreamingQRD.hpp" />
     <ClInclude Include="src\Transpose.hpp" />
     <ClInclude Include="src\Tuple.hpp" />
-    <ClInclude Include="src\UnrolledLoop.hpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="README.md" />

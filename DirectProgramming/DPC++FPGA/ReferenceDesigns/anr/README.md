@@ -157,7 +157,6 @@ The following source files can be found in the `src/` sub-directory.
 |`rom_base.hpp`                   | A generic library for creating a ROM from a `constexpr` class.
 |`row_stencil.hpp`                | A generic library for computing a row stencil (a 1D horizontal convolution).
 |`shift_reg.hpp`                  | A generic library for a shift register.
-|`unrolled_loop.hpp`              | A templated-based loop unroller that unrolls loops in the compiler front end.
 
 ### ANR Algorithm
 The ANR algorithm works on an input image that is in [Bayer format](https://en.wikipedia.org/wiki/Bayer_filter). Unlike image formats you may be used to (e.g., PNG or JPG), where each pixel has a red, green, **and** blue value (RGB), each pixel in a Bayer format image is either red, green, **or** blue, as shown in the image below. To convert to an RGB image, you take a 4x4 square and generate the RGB pixel by averaging the two green pixels. One purpose of this format is to dedicate more pixels to green, since the human eye is more sensitive to green.
@@ -201,7 +200,6 @@ In this design, we use the following generic header files:
   - `ROMBase` (*rom_base.hpp*): This library provides a base class for creating a `constexpr` class that results in a ROM in the FPGA.
   - `RowStencil` (*row_stencil.hpp*): A library for generalizing a row stencil (i.e., the horizontal filter) using C++ functors for callbacks to perform the filter. This library hides the details of the shift register and padding logic and allows the user to simply worry about the filter convolution.
   - `ShiftReg` (*shift_reg.hpp*): A library to implement a shift register. This hides the logic necessary to ensure the compiler infers an efficient shift register behind easy-to-use API calls.
-  - `UnrolledLoop` (*unrolled_loop.hpp*): A library that implements a front-end unrolled loop using C++ metaprogramming.
   - *mp_math.hpp*: A set of various `constexpr` math functions that are implemented using C++ metaprogramming.
 
   For more information on the usage and implementation of these header libraries, view the source code (the `.hpp` files), which are well commented for documentation.

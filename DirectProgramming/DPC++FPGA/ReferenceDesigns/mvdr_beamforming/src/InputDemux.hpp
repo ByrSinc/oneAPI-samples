@@ -7,7 +7,8 @@
 
 // utility classes
 #include "Tuple.hpp"
-#include "UnrolledLoop.hpp"
+// Included from DirectProgramming/DPC++FPGA/include
+#include "unrolled_loop.hpp"
 
 #include "mvdr_complex.hpp"
 

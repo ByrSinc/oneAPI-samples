@@ -8,7 +8,8 @@
 #include <type_traits>
 #include <utility>
 
-#include "Unroller.hpp"
+// Included from DirectProgramming/DPC++FPGA/include
+#include "unrolled_loop.hpp"
 #include "Tuple.hpp"
 #include "StreamingData.hpp"
 #include "ShannonIterator.hpp"
@@ -79,12 +80,12 @@ void MapJoin(MapType& map) {
       StreamingData<JoinType, t2_win_size> join_data(false, true);
 
       // initialize all outputs to false
-      UnrolledLoop<0, t2_win_size>([&](auto i) { 
+      UnrolledLoop<t2_win_size>([&](auto i) { 
         join_data.data.template get<i>().valid = false;
       });
 
       // check for match in the map and join if valid
-      UnrolledLoop<0, t2_win_size>([&](auto j) {
+      UnrolledLoop<t2_win_size>([&](auto j) {
         const bool t2_win_valid = in_data.data.template get<j>().valid;
         const unsigned int t2_key =
             in_data.data.template get<j>().PrimaryKey();

@@ -8,7 +8,8 @@
 #include <type_traits>
 #include <utility>
 
-#include "Unroller.hpp"
+// Included from DirectProgramming/DPC++FPGA/include
+#include "unrolled_loop.hpp"
 #include "Tuple.hpp"
 #include "StreamingData.hpp"
 #include "ShannonIterator.hpp"
@@ -105,16 +106,16 @@ void MergeJoin() {
       StreamingData<JoinType, t2_win_size> join_data(false, true);
 
       // initialize all outputs to false
-      UnrolledLoop<0, t2_win_size>([&](auto i) {
+      UnrolledLoop<t2_win_size>([&](auto i) {
         join_data.data.template get<i>().valid = false;
       });
 
       // crossbar join
-      UnrolledLoop<0, t2_win_size>([&](auto i) {
+      UnrolledLoop<t2_win_size>([&](auto i) {
         const bool t2_data_valid = t2_win.data.template get<i>().valid;
         const auto t2_key = t2_win.data.template get<i>().PrimaryKey();
 
-        UnrolledLoop<0, t1_win_size>([&](auto j) {
+        UnrolledLoop<t1_win_size>([&](auto j) {
           const bool t1_data_valid = t1_win.data.template get<j>().valid;
           const auto t1_key = t1_win.data.template get<j>().PrimaryKey();
 
@@ -240,16 +241,16 @@ void DuplicateMergeJoin() {
                                                                          true);
 
       // initialize all validity to false
-      UnrolledLoop<0, t1_max_duplicates * t2_win_size>([&](auto i) {
+      UnrolledLoop<t1_max_duplicates * t2_win_size>([&](auto i) {
         join_data.data.template get<i>().valid = false;
       });
 
       // full crossbar join producing up to t1_max_duplicates*t2_win_size
-      UnrolledLoop<0, t1_max_duplicates>([&](auto i) {
+      UnrolledLoop<t1_max_duplicates>([&](auto i) {
         const bool t1_data_valid = t1_win.data.template get<i>().valid;
         const unsigned int t1_key = t1_win.data.template get<i>().PrimaryKey();
 
-        UnrolledLoop<0, t2_win_size>([&](auto j) {
+        UnrolledLoop<t2_win_size>([&](auto j) {
           const bool t2_data_valid = t2_win.data.template get<j>().valid;
           const unsigned int t2_key =
               t2_win.data.template get<j>().PrimaryKey();

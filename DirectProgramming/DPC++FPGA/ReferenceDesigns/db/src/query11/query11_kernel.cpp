@@ -8,7 +8,8 @@
 #include "../db_utils/MapJoin.hpp"
 #include "../db_utils/Misc.hpp"
 #include "../db_utils/Tuple.hpp"
-#include "../db_utils/Unroller.hpp"
+// Included from DirectProgramming/DPC++FPGA/include
+#include "unrolled_loop.hpp"
 #include "../db_utils/ShannonIterator.hpp"
 #include "../db_utils/fifo_sort.hpp"
 
@@ -95,7 +96,7 @@ bool SubmitQuery11(queue& q, Database& dbinfo, std::string& nation,
         // bulk read of data from global memory
         NTuple<kJoinWinSize, PartSupplierRow> data;
 
-        UnrolledLoop<0, kJoinWinSize>([&](auto j) {
+        UnrolledLoop<kJoinWinSize>([&](auto j) {
           size_t idx = i * kJoinWinSize + j;
           bool in_range = idx < ps_rows;
 
@@ -180,7 +181,7 @@ bool SubmitQuery11(queue& q, Database& dbinfo, std::string& nation,
         done = pipe_data.done;
 
         if (pipe_data.valid) {
-          UnrolledLoop<0, kJoinWinSize>([&](auto j) {
+          UnrolledLoop<kJoinWinSize>([&](auto j) {
             SupplierPartSupplierJoined data = pipe_data.data.template get<j>();
 
             if (data.valid && data.nationkey == nationkey) {

@@ -6,7 +6,8 @@
 #include "pipe_types.hpp"
 
 #include "../db_utils/MergeJoin.hpp"
-#include "../db_utils/Unroller.hpp"
+// Included from DirectProgramming/DPC++FPGA/include
+#include "unrolled_loop.hpp"
 #include "../db_utils/Tuple.hpp"
 
 using namespace std::chrono;
@@ -68,7 +69,7 @@ bool SubmitQuery12(queue& q, Database& dbinfo, DBDate low_date,
         // bulk read of data from global memory
         NTuple<kLineItemJoinWindowSize, LineItemRow> data;
 
-        UnrolledLoop<0, kLineItemJoinWindowSize>([&](auto j) {
+        UnrolledLoop<kLineItemJoinWindowSize>([&](auto j) {
           size_t idx = (i*kLineItemJoinWindowSize + j);
           bool in_range = idx < l_rows;
           DBIdentifier key_tmp = l_orderkey_accessor[idx];
@@ -107,7 +108,7 @@ bool SubmitQuery12(queue& q, Database& dbinfo, DBDate low_date,
         // bulk read of data from global memory
         NTuple<kOrderJoinWindowSize, OrdersRow> data;
 
-        UnrolledLoop<0, kOrderJoinWindowSize>([&](auto j) {
+        UnrolledLoop<kOrderJoinWindowSize>([&](auto j) {
           size_t idx = (i*kOrderJoinWindowSize + j);
           bool in_range = idx < o_rows;
           
@@ -169,7 +170,7 @@ bool SubmitQuery12(queue& q, Database& dbinfo, DBDate low_date,
           DBDecimal high_line_count2_local_tmp[kLineItemJoinWindowSize];
           DBDecimal low_line_count2_local_tmp[kLineItemJoinWindowSize];
 
-          UnrolledLoop<0, kLineItemJoinWindowSize>([&](auto i) {
+          UnrolledLoop<kLineItemJoinWindowSize>([&](auto i) {
             // determine 'where' criteria of query
             const bool is_shipmode1 =
                 (joined_data.data.get<i>().shipmode == shipmode1);
@@ -218,7 +219,7 @@ bool SubmitQuery12(queue& q, Database& dbinfo, DBDate low_date,
           });
 
           // this creates an adder reduction tree from *_local_tmp to *_local
-          UnrolledLoop<0, kLineItemJoinWindowSize>([&](auto i) {
+          UnrolledLoop<kLineItemJoinWindowSize>([&](auto i) {
             high_line_count1_local += high_line_count1_local_tmp[i];
             low_line_count1_local += low_line_count1_local_tmp[i];
             high_line_count2_local += high_line_count2_local_tmp[i];

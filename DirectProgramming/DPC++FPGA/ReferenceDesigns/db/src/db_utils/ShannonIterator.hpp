@@ -6,7 +6,8 @@
 #include <type_traits>
 
 #include "Tuple.hpp"
-#include "Unroller.hpp"
+// Included from DirectProgramming/DPC++FPGA/include
+#include "unrolled_loop.hpp"
 
 //
 // This class is intended to improve iterator performance for the FPGA.
@@ -49,7 +50,7 @@ class ShannonIterator {
   //
   ShannonIterator(CounterType start, CounterType end) : end_(end) {
     // initialize the counter shift register
-    UnrolledLoop<0, kCountShiftRegisterSize>([&](auto i) {
+    UnrolledLoop<kCountShiftRegisterSize>([&](auto i) {
       if (increment) {
         counter_.template get<i>() = start + (i * step_size);
       } else {
@@ -58,7 +59,7 @@ class ShannonIterator {
     });
 
     // initialize the in range boolean shift register
-    UnrolledLoop<0, kInRangeShiftRegisterSize>([&](auto i) {
+    UnrolledLoop<kInRangeShiftRegisterSize>([&](auto i) {
       CounterType val = counter_.template get<i>();
 
       // depends on increment and inclusive template parameters,
@@ -76,7 +77,7 @@ class ShannonIterator {
   //
   bool Step() {
     // shift the in range checks
-    UnrolledLoop<0, kInRangeShiftRegisterSize - 1>([&](auto i) {
+    UnrolledLoop<kInRangeShiftRegisterSize - 1>([&](auto i) {
       inrange_.template get<i>() = inrange_.template get<i + 1>();
     });
 
@@ -90,7 +91,7 @@ class ShannonIterator {
     }
 
     // shift the counters
-    UnrolledLoop<0, shift_register_size - 1>([&](auto i) {
+    UnrolledLoop<shift_register_size - 1>([&](auto i) {
       counter_.template get<i>() = counter_.template get<i + 1>();
     });
 

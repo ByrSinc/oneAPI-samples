@@ -13,7 +13,8 @@
 #include "../db_utils/Misc.hpp"
 #include "../db_utils/ShannonIterator.hpp"
 #include "../db_utils/Tuple.hpp"
-#include "../db_utils/Unroller.hpp"
+// Included from DirectProgramming/DPC++FPGA/include
+#include "unrolled_loop.hpp"
 #include "../db_utils/fifo_sort.hpp"
 
 using namespace std::chrono;
@@ -72,7 +73,7 @@ void Shuffle(NTuple<tuple_size, TupleType>& input,
       "Number of valid bits in bits cannot exceed the size of the tuple");
 
   // full crossbar to reorder valid entries of 'input'
-  UnrolledLoop<0, kNumOnes>([&](auto i) {
+  UnrolledLoop<kNumOnes>([&](auto i) {
     constexpr char pos = PositionOfNthOne<char>(i + 1, bits) - 1;
     output.template get<i>() = input.template get<pos>();
   });
@@ -165,7 +166,7 @@ bool SubmitQuery9(queue& q, Database& dbinfo, std::string colour,
       // initialize regex word
       for (size_t i = 0; i < 11; i++) {
         const char c = regex_word_accessor[i];
-        UnrolledLoop<0, kRegexFilterElementsPerCycle>([&](auto re) { 
+        UnrolledLoop<kRegexFilterElementsPerCycle>([&](auto re) { 
           regex[re].word[i] = c;
         });
       }
@@ -173,7 +174,7 @@ bool SubmitQuery9(queue& q, Database& dbinfo, std::string colour,
       // stream in rows of PARTS table and check partname against REGEX
       [[intel::initiation_interval(1), intel::ivdep]]
       for (size_t i = 0; i < p_iters; i++) {
-        UnrolledLoop<0, kRegexFilterElementsPerCycle>([&](auto re) {
+        UnrolledLoop<kRegexFilterElementsPerCycle>([&](auto re) {
           const size_t idx = i * kRegexFilterElementsPerCycle + re;
           const bool idx_range = idx < p_rows;
 
@@ -182,7 +183,7 @@ bool SubmitQuery9(queue& q, Database& dbinfo, std::string colour,
           const DBIdentifier partkey = idx_range ? idx + 1 : 0;
 
           // read in regex string
-          UnrolledLoop<0, 55>([&](auto k) {
+          UnrolledLoop<55>([&](auto k) {
             regex[re].str[k] = p_name_accessor[idx * 55 + k];
           });
 
@@ -209,7 +210,7 @@ bool SubmitQuery9(queue& q, Database& dbinfo, std::string colour,
         // bulk read of data from global memory
         NTuple<kLineItemJoinWinSize, LineItemMinimalRow> data;
 
-        UnrolledLoop<0, kLineItemJoinWinSize>([&](auto j) {
+        UnrolledLoop<kLineItemJoinWinSize>([&](auto j) {
           size_t idx = i * kLineItemJoinWinSize + j;
           bool in_range = idx < l_rows;
 
@@ -249,7 +250,7 @@ bool SubmitQuery9(queue& q, Database& dbinfo, std::string colour,
         // bulk read of data from global memory
         NTuple<kOrdersJoinWinSize, OrdersRow> data;
 
-        UnrolledLoop<0, kOrdersJoinWinSize>([&](auto j) {
+        UnrolledLoop<kOrdersJoinWinSize>([&](auto j) {
           size_t idx = i * kOrdersJoinWinSize + j;
           bool in_range = idx < l_rows;
 
@@ -350,7 +351,7 @@ bool SubmitQuery9(queue& q, Database& dbinfo, std::string colour,
         // bulk read of data from global memory
         NTuple<kPartSupplierDuplicatePartkeys, PartSupplierRow> data;
 
-        UnrolledLoop<0, kPartSupplierDuplicatePartkeys>([&](auto j) {
+        UnrolledLoop<kPartSupplierDuplicatePartkeys>([&](auto j) {
           size_t idx = i * kPartSupplierDuplicatePartkeys + j;
           bool in_range = idx < ps_rows;
           DBIdentifier partkey = ps_partkey_accessor[idx];
@@ -386,7 +387,7 @@ bool SubmitQuery9(queue& q, Database& dbinfo, std::string colour,
           sum_profit_local[kFinalDataMaxSize];
 
       // initialize the accumulators
-      UnrolledLoop<0, kFinalDataMaxSize>([&](auto j) {
+      UnrolledLoop<kFinalDataMaxSize>([&](auto j) {
         sum_profit_local[j].Init();
       });
 
@@ -399,7 +400,7 @@ bool SubmitQuery9(queue& q, Database& dbinfo, std::string colour,
 
         const bool pipeDataValid = !pipe_data.done && pipe_data.valid;
 
-        UnrolledLoop<0, kFinalDataMaxSize>([&](auto j) {
+        UnrolledLoop<kFinalDataMaxSize>([&](auto j) {
           FinalData D = pipe_data.data.get<j>();
 
           bool D_valid = pipeDataValid && D.valid;
@@ -439,7 +440,7 @@ bool SubmitQuery9(queue& q, Database& dbinfo, std::string colour,
 
           DBDecimal amount = 0;
 
-          UnrolledLoop<0, kFinalDataMaxSize>([&](auto j) {
+          UnrolledLoop<kFinalDataMaxSize>([&](auto j) {
             amount += sum_profit_local[j].Get(in_idx);
           });
 
@@ -472,13 +473,13 @@ bool SubmitQuery9(queue& q, Database& dbinfo, std::string colour,
           char valid_bits = 0;
 
           // convert the 'valid' bits in the tuple to a bitset (valid_bits)
-          UnrolledLoop<0, kLineItemOrdersJoinWinSize>([&](auto i) {
+          UnrolledLoop<kLineItemOrdersJoinWinSize>([&](auto i) {
             constexpr char mask = 1 << i;
             valid_bits |= pipe_data.data.get<i>().valid ? mask : 0;
           });
 
           // full crossbar to do the shuffling from pipe_data to shuffle_data
-          UnrolledLoop<0, Pow2(kLineItemOrdersJoinWinSize)>([&](auto i) {
+          UnrolledLoop<Pow2(kLineItemOrdersJoinWinSize)>([&](auto i) {
             if (valid_bits == i) {
               Shuffle<i, kLineItemOrdersJoinWinSize,
                       LineItemOrdersMinimalJoined>(pipe_data.data,
@@ -503,7 +504,7 @@ bool SubmitQuery9(queue& q, Database& dbinfo, std::string colour,
           [[intel::initiation_interval(1), intel::speculated_iterations(0)]]
           for (char i = 0; i < valid_count && 
                 i < kLineItemOrdersJoinWinSize; i++) {
-            UnrolledLoop<0, kLineItemOrdersJoinWinSize>([&](auto j) {
+            UnrolledLoop<kLineItemOrdersJoinWinSize>([&](auto j) {
               if (j == i) {
                 SortInPipe::write(SortData(shuffle_data.get<j>()));
               }

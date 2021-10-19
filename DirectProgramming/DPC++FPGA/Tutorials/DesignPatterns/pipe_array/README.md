@@ -56,11 +56,11 @@ In most cases, we want to use an array of pipes so that we can iterate over them
 
 ```c++
 // Write 17 to every pipe in the array
-Unroller<0, 10>::Step([](auto i) {
+UnrolledLoop<10>([&](auto i) {
   MyPipeArray::PipeAt<i>::write(17);
 });
 ```
-While this may initially feel foreign to those unaccustomed to C++ template metaprogramming, this is a simple and powerful pattern common to many C++ libraries. It is easy to reuse. This code sample includes a simple header file `unroller.hpp`, which implements the  `Unroller` functionality.
+While this may initially feel foreign to those unaccustomed to C++ template metaprogramming, this is a simple and powerful pattern common to many C++ libraries. It is easy to reuse. This code sample uses a simple header file `unrolled_loop.hpp`, which implements the  `UnrolledLoop` functionality. This header can be found in the DirectProgramming/DPC++FPGA/include/ directory of this repository.
 
 ### Example 2: A 2D array of pipes
 
@@ -87,9 +87,9 @@ h.single_task<ProducerTutorial>([=]() {
   size_t input_idx = 0;
   for (size_t pass = 0; pass < num_passes; pass++) {
     // Template-based unroll (outer "i" loop)
-    Unroller<0, kNumRows>::Step([&input_idx, input_accessor](auto i) {
+    UnrolledLoop<kNumRows>([&input_idx, input_accessor](auto i) {
       // Template-based unroll (inner "j" loop)
-      Unroller<0, kNumCols>::Step([&input_idx, i, input_accessor](auto j) {
+      UnrolledLoop<kNumCols>([&input_idx, i, input_accessor](auto j) {
         // Write a value to the <i,j> pipe of the pipe array
         ProducerToConsumerPipeMatrix::PipeAt<i, j>::write(
             input_accessor[input_idx++]);
@@ -125,7 +125,7 @@ The host must thus enqueue the producer kernel and `kNumRows * kNumCols` separat
   
   // Use template-based unroll to enqueue multiple consumers    
   std::vector<buffer<uint64_t,1>> consumer_buffers;
-  Unroller<0, kNumberOfConsumers>::Step([&](auto consumer_id) {
+  UnrolledLoop<kNumberOfConsumers>([&](auto consumer_id) {
     consumer_buffers.emplace_back(consumer_output[consumer_id].data(), items_per_consumer);
     Consumer<consumer_id>(q, consumer_buffers.back());
   });

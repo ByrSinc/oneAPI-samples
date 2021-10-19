@@ -2,6 +2,7 @@
 #define __SHIFT_REG_HPP__
 
 #include "data_bundle.hpp"
+// Included from DirectProgramming/DPC++FPGA/include
 #include "unrolled_loop.hpp"
 
 namespace hldutils {

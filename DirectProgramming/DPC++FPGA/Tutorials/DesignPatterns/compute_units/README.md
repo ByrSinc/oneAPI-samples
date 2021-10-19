@@ -23,7 +23,7 @@ This tutorial provides a header file that defines an abstraction for making mult
 
 ### Compute units example 
 
-This code sample builds on the pipe_array tutorial. It includes the header file `unroller.hpp` from the pipe_array tutorial, and provides the `compute_units.hpp` header as well.
+This code sample builds on the pipe_array tutorial. It uses the header file `pipe_utils.hpp` from DirectProgramming/DPC++FPGA/include, and provides the `compute_units.hpp` header as well.
 
 This code sample defines a `Source` kernel, and a `Sink` kernel. Data is read from host memory by the `Source` kernel and sent to the `Sink` kernel via a chain of compute units. The number of compute units in the chain between `Source` and `Sink` is determined by the following parameter:
 

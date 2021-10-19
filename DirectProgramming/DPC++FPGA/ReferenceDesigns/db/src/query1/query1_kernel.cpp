@@ -4,7 +4,8 @@
 
 #include "../db_utils/Accumulator.hpp"
 #include "../db_utils/Tuple.hpp"
-#include "../db_utils/Unroller.hpp"
+// Included from DirectProgramming/DPC++FPGA/include
+#include "unrolled_loop.hpp"
 
 using namespace std::chrono;
 
@@ -103,7 +104,7 @@ bool SubmitQuery1(queue& q, Database& dbinfo, DBDate low_date,
         bool row_valid[kElementsPerCycle];
 
         // multiple elements per cycle
-        UnrolledLoop<0, kElementsPerCycle>([&](auto p) {
+        UnrolledLoop<kElementsPerCycle>([&](auto p) {
           // is data in range of the table
           // (data size may not be divisible by kElementsPerCycle)
           size_t idx = r * kElementsPerCycle + p;
@@ -148,7 +149,7 @@ bool SubmitQuery1(queue& q, Database& dbinfo, DBDate low_date,
         });
 
         // reduction accumulation
-        UnrolledLoop<0, kElementsPerCycle>([&](auto p) {
+        UnrolledLoop<kElementsPerCycle>([&](auto p) {
           sum_qty_local.Accumulate(out_idx[p],
                                    row_valid[p] ? qty[p] : 0);
           sum_base_price_local.Accumulate(out_idx[p],

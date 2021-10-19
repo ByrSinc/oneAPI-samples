@@ -26,6 +26,7 @@
 #include "qfp_inv_lut.hpp"
 #include "row_stencil.hpp"
 #include "shift_reg.hpp"
+// Included from DirectProgramming/DPC++FPGA/include
 #include "unrolled_loop.hpp"
 
 using namespace sycl;

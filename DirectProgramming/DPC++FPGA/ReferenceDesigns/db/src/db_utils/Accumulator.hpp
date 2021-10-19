@@ -6,7 +6,8 @@
 #include <type_traits>
 
 #include "Tuple.hpp"
-#include "Unroller.hpp"
+// Included from DirectProgramming/DPC++FPGA/include
+#include "unrolled_loop.hpp"
 
 ///////////////////////////////////////////////////////
 //
@@ -26,14 +27,14 @@ class RegisterAccumulator {
  public:
   // initialize the memory to 0
   void Init() {
-    UnrolledLoop<0, size>([&](auto i) { 
+    UnrolledLoop<size>([&](auto i) { 
       registers.template get<i>() = 0;
     });
   }
 
   // accumulate 'value' into register 'index' (i.e. registers[index] += value)
   void Accumulate(IndexType index, StorageType value) {
-    UnrolledLoop<0, size>([&](auto i) {
+    UnrolledLoop<size>([&](auto i) {
       registers.template get<i>() += (i == index) ? value : 0;
     });
   }
@@ -48,7 +49,7 @@ class RegisterAccumulator {
   // get the value of memory at 'index'
   StorageType Get(IndexType index) {
     StorageType ret;
-    UnrolledLoop<0, size>([&](auto i) {
+    UnrolledLoop<size>([&](auto i) {
       if (i == index) {
         ret = registers.template get<i>();
       }

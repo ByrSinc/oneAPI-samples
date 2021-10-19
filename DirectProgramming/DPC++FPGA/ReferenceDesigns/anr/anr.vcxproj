@@ -28,7 +28,6 @@
     <ClInclude Include="src\rom_base.hpp" />
     <ClInclude Include="src\row_stencil.hpp" />
     <ClInclude Include="src\shift_reg.hpp" />
-    <ClInclude Include="src\unrolled_loop.hpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="README.md" />

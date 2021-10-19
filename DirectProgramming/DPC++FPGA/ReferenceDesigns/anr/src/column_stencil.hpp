@@ -7,6 +7,7 @@
 #include "data_bundle.hpp"
 #include "mp_math.hpp"
 #include "shift_reg.hpp"
+// Included from DirectProgramming/DPC++FPGA/include
 #include "unrolled_loop.hpp"
 
 using namespace sycl;

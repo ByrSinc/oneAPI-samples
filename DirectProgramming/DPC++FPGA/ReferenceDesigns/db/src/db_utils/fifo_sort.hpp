@@ -7,6 +7,8 @@
 #include <utility>
 
 #include "Misc.hpp"
+// Included from DirectProgramming/DPC++FPGA/include
+#include "unrolled_loop.hpp"
 
 /*
 The sort() function in this header implements a local-memory-based FIFO-Based
@@ -128,30 +130,9 @@ struct stage_unroller {
   }
 };
 
-template <int end, int sz_fifo>
-struct stage_unroller<end, end, sz_fifo> {
-  template <typename Action>
-  static void step(const Action &action) {}
-};
-
-template <int It, int end>
-struct unroller {
-  template <typename Action>
-  static void step(const Action& action) {
-    action(std::integral_constant<int, It>());
-    unroller<It + 1, end>::step(action);
-  }
-};
-
-template <int end>
-struct unroller<end, end> {
-  template <typename Action>
-  static void step(const Action&) {}
-};
-
 template <typename T_arr, int size>
 static void ShiftLeft(T_arr (&Array)[size]) {
-  unroller<0, size - 1>::step([&](auto j) { Array[j] = Array[j + 1]; });
+  UnrolledLoop<size - 1>([&](auto j) { Array[j] = Array[j + 1]; });
 }
 
 //============================= FIFO Definition ==============================//

@@ -12,7 +12,8 @@
     "base": "../..",
     "include": [
       "Tutorials/DesignPatterns/compute_units",
-      "include/pipe_utils.hpp"
+      "include/pipe_utils.hpp",
+      "include/unrolled_loop.hpp"
     ],
     "exclude": []
   },

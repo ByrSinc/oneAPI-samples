@@ -5,7 +5,8 @@
 #include <sycl/ext/intel/fpga_extensions.hpp>
 
 #include "Tuple.hpp"
-#include "UnrolledLoop.hpp"
+// Included from DirectProgramming/DPC++FPGA/include
+#include "unrolled_loop.hpp"
 
 using namespace sycl;
 
